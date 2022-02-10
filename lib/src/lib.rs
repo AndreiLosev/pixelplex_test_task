@@ -1,5 +1,18 @@
 
 pub mod graff {
+    use std::{result::Result};
+
+    #[derive(PartialEq, Debug)]
+    struct Rib<T> {
+        target: usize,
+        value: T,
+    }
+
+    impl<T> Rib<T> {
+        fn new(target: usize, value: T) -> Self {
+            Rib { target, value }
+        }
+    }
 
     #[derive(PartialEq, Debug)]
     struct  Node<T, U> {
@@ -7,10 +20,10 @@ pub mod graff {
         ribs: Vec<Rib<U>>
     }
 
-    #[derive(PartialEq, Debug)]
-    struct Rib<T> {
-        target: u64,
-        value: T,
+    impl<T, U> Node<T, U> {
+        fn new(value: T) -> Self {
+            Node { value, ribs: Vec::new() }
+        }
     }
 
     #[derive(PartialEq, Debug)]
@@ -19,6 +32,7 @@ pub mod graff {
     }
 
     impl<T, U> DirectionalGraff<T, U> {
+
         pub fn new(first_node_value: T) -> Self {
             let firs_node: Node<_, U> = Node {
                 value: first_node_value,
@@ -27,14 +41,41 @@ pub mod graff {
             Self{ nods: vec![firs_node] }
         }
 
-        // pub fn add_node()
+        pub fn len(self) -> usize {
+            self.nods.len()
+        }
+
+        pub fn add_node(&mut self, from: usize, rib_value: U, node_value: T) -> Result<(), &str> {
+            let mut node = match self.nods.get(from) {
+                Some(node) => node,
+                None => return  Err("no node with this number exists"),
+            };
+
+            let new_node_number = self.nods.len();
+
+            let new_node: Node<_, U> = Node {
+                value: node_value,
+                ribs: Vec::new(),
+            };
+
+            self.nods.push(new_node);
+
+            let rib: Rib<U> = Rib {
+                target: new_node_number,
+                value: rib_value,
+            };
+
+            // node.ribs = vec![rib];
+
+            Ok(())
+        }
     }
 
     #[test]
     fn it_create_new() {
-        let result: DirectionalGraff<u8, i8> = DirectionalGraff::new(2);
-        let example_node: Node<u8, i8> = Node { value: 2, ribs: Vec::new() };
-        let example: DirectionalGraff<u8, i8> = DirectionalGraff { nods: vec![example_node] };
+        let result: DirectionalGraff<u8, u8> = DirectionalGraff::new(2);
+        let example_node: Node<u8, u8> = Node { value: 2, ribs: Vec::new() };
+        let example: DirectionalGraff<u8, u8> = DirectionalGraff { nods: vec![example_node] };
         assert_eq!(result, example);
     }
 
