@@ -24,6 +24,11 @@ pub mod graff {
         fn new(value: T) -> Self {
             Node { value, ribs: Vec::new() }
         }
+
+        fn add_rib(&mut self, target: usize, value: U) {
+            let new_rib = Rib::new(target, value);
+            self.ribs.push(new_rib);
+        }
     }
 
     #[derive(PartialEq, Debug)]
@@ -34,11 +39,7 @@ pub mod graff {
     impl<T, U> DirectionalGraff<T, U> {
 
         pub fn new(first_node_value: T) -> Self {
-            let firs_node: Node<_, U> = Node {
-                value: first_node_value,
-                ribs: Vec::new(),
-            };
-            Self{ nods: vec![firs_node] }
+            Self{ nods: vec![Node::new(first_node_value)] }
         }
 
         pub fn len(self) -> usize {
@@ -46,26 +47,27 @@ pub mod graff {
         }
 
         pub fn add_node(&mut self, from: usize, rib_value: U, node_value: T) -> Result<(), &str> {
-            let mut node = match self.nods.get(from) {
-                Some(node) => node,
-                None => return  Err("no node with this number exists"),
-            };
 
             let new_node_number = self.nods.len();
 
-            let new_node: Node<_, U> = Node {
-                value: node_value,
-                ribs: Vec::new(),
-            };
+            if new_node_number <= from {
+                return  Err("no node with this number exists");
+            }
 
-            self.nods.push(new_node);
+            self.nods.push(Node::new(node_value));
+            self.nods[from].add_rib(new_node_number, rib_value);
 
-            let rib: Rib<U> = Rib {
-                target: new_node_number,
-                value: rib_value,
-            };
+            Ok(())
+        }
 
-            // node.ribs = vec![rib];
+        pub fn add_rib(&mut self, from: usize, to: usize, rib_value: U) -> Result<(), &str> {
+
+            if from >= self.nods.len() || to >= self.nods.len() {
+                return  Err("no node with this number exists");
+            }
+
+            let new_rib = Rib::new(to, rib_value);
+            self.nods[from].ribs.push(new_rib);
 
             Ok(())
         }
@@ -79,11 +81,16 @@ pub mod graff {
         assert_eq!(result, example);
     }
 
+    #[test]
+    fn add_node_test() {
+        let mut result: DirectionalGraff<u8, u8> = DirectionalGraff::new(2);
+        result.add_node(0, 5, 4);
+
+        let example_rib1: Rib<u8> = Rib { target: 1, value: 5 };
+        let example_node1: Node<u8, u8> = Node { value: 2, ribs: vec![example_rib1] };
+        let example_node2: Node<u8, u8> = Node { value: 4, ribs: Vec::new() };
+        let example: DirectionalGraff<u8, u8> = DirectionalGraff { nods: vec![example_node1, example_node2] };
+        assert_eq!(result, example);
+    }
+
 }
-
-
-
-// #[cfg(test)]
-// mod tests {
-//     use crate::graff::{self, DirectionalGraff};
-// }
