@@ -54,8 +54,8 @@ pub mod graff {
 
     impl<T, U> DirectionalGraff<T, U> {
 
-        fn new_empty() -> Self {
-            let mut nodes: HashMap<usize, Node<T, U>> = HashMap::new();
+        pub fn new_empty() -> Self {
+            let nodes: HashMap<usize, Node<T, U>> = HashMap::new();
             Self{ nodes }
         }
 
@@ -163,8 +163,9 @@ pub mod graff {
         }
     }
 
-    impl<T: str::FromStr, U: str::FromStr> DirectionalGraff<T, U> {
-        pub fn dessireolization<'a>(&mut self, str: String) -> result::Result<Self, &'a str> {
+    impl<T: str::FromStr + 'static, U: str::FromStr + 'static> DirectionalGraff<T, U> {
+
+        pub fn dessireolization<'a>(&mut self, str: String) -> result::Result<(), &'a str> {
 
             let x = str.rsplit("#\n").collect::<Vec<_>>();
             let str_nodes = match x.get(0) {
@@ -176,17 +177,64 @@ pub mod graff {
                 None => return Err("serialization error"),
             };
 
-            let mut nodes: HashMap<usize, Node<T, U>> = HashMap::new();
+            let mut raf_nodes: HashMap<usize, Node<T, U>> = HashMap::new();
 
             for line in str_nodes.rsplit("\n") {
-                let (key, value) = self.parse_node_line(line)?;
-                nodes.insert(key, Node::new(value));
+
+                if line.len() <= 2 {
+                    continue;
+                }
+
+                let (key, value) = self.parse_line(line)?;
+
+                let value = match value.parse::<T>() {
+                    Ok(v) => v,
+                    Err(_) => return  Err("serialization error"),
+                };
+
+                let key = match key.parse::<usize>() {
+                    Ok(v) => v,
+                    Err(_) => return  Err("serialization error"),
+                };
+
+                raf_nodes.insert(key, Node::new(value));
             }
 
-            Ok(Self::new_empty())
+            for line in str_ribs.rsplit("\n") {
+                if line.len() <= 2 {
+                    continue;
+                }
+
+                let (from, value) = self.parse_line(line)?;
+                let (to, value) = self.parse_line(&value[..])?;
+
+                let from = match from.parse::<usize>() {
+                    Ok(v) => v,
+                    Err(_) => return  Err("serialization error"),
+                };
+
+                let to = match to.parse::<usize>() {
+                    Ok(v) => v,
+                    Err(_) => return  Err("serialization error"),
+                };
+
+                let value = match value.parse::<U>() {
+                    Ok(v) => v,
+                    Err(_) => return Err("serialization error"),
+                };
+
+                match raf_nodes.get_mut(&from) {
+                    Some(v) => v.ribs.push(Rib::new(to, value)),
+                    None => return Err("serialization error"),
+                }
+            }
+
+            self.nodes = raf_nodes;
+
+            Ok(())
         }
 
-        fn parse_node_line<'a, 'b>(&self, line: &'a str) -> Result<(usize, T), &'b str> {
+        fn parse_line<'a, 'b>(&self, line: &'a str) -> Result<(String, String), &'b str> {
             let mut key = String::new();
             let mut space_position = 0 as usize;
 
@@ -199,17 +247,7 @@ pub mod graff {
                 key.push(char);
             }
 
-            let value = match String::from(&line[space_position..]).parse::<T>() {
-                Ok(v) => v,
-                Err(_) => return  Err("serialization error"),
-            };
-
-            let key = match key.parse::<usize>() {
-                Ok(v) => v,
-                Err(_) => return  Err("serialization error"),
-            };
-
-            Ok((key, value))
+            Ok((key, String::from(&line[space_position..])))
         }
     }
 
