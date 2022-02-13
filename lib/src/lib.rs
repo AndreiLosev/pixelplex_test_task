@@ -1,7 +1,8 @@
 
 pub mod graff {
-    use std::{result::Result};
+    use std::{result};
     use std::collections::HashMap;
+    use std::str;
     use queues::*;
 
     #[derive(PartialEq, Debug)]
@@ -53,6 +54,11 @@ pub mod graff {
 
     impl<T, U> DirectionalGraff<T, U> {
 
+        fn new_empty() -> Self {
+            let mut nodes: HashMap<usize, Node<T, U>> = HashMap::new();
+            Self{ nodes }
+        }
+
         pub fn get_next_key(&self) -> usize {
             let max_key = self.nodes.keys().max();
             match max_key {
@@ -61,7 +67,7 @@ pub mod graff {
             }
         }
 
-        fn get_mut(&mut self, node_number: &usize) -> Result<&mut Node<T, U>, &str> {
+        fn get_mut(&mut self, node_number: &usize) -> result::Result<&mut Node<T, U>, &str> {
             let result = match self.nodes.get_mut(node_number) {
                 Some(node) => Ok(node),
                 None => Err("no node with this number exists"),
@@ -70,7 +76,7 @@ pub mod graff {
             result
         }
 
-        fn get(&self, node_number: &usize) -> Result<&Node<T, U>, &str> {
+        fn get(&self, node_number: &usize) -> result::Result<&Node<T, U>, &str> {
             let result = match self.nodes.get(node_number) {
                 Some(node) => Ok(node),
                 None => Err("no node with this number exists"),
@@ -100,7 +106,7 @@ pub mod graff {
             Ok(())
         }
 
-        pub fn add_rib(&mut self, from: usize, to: usize, rib_value: U) -> Result<(), &str> {
+        pub fn add_rib(&mut self, from: usize, to: usize, rib_value: U) -> result::Result<(), &str> {
 
             let new_rib = Rib::new(to, rib_value);
 
@@ -109,7 +115,7 @@ pub mod graff {
             Ok(())
         }
 
-        pub fn bfs(&self, from: usize, exit_condition: Box<dyn Fn(&Node<T, U>, usize) -> bool>) -> Result<Option<usize>, &str> {
+        pub fn bfs(&self, from: usize, exit_condition: Box<dyn Fn(&Node<T, U>, usize) -> bool>) -> result::Result<Option<usize>, &str> {
 
             let mut queue: Queue<&Node<T, U>> = queue![];
             queue.add(self.get(&from)?).unwrap();
@@ -136,7 +142,7 @@ pub mod graff {
             }
         }
 
-        pub fn remove_rib(&mut self, from: usize, to: usize) -> Result<(), &str> {
+        pub fn remove_rib(&mut self, from: usize, to: usize) -> result::Result<(), &str> {
 
             let from_node = self.get_mut(&from)?;
             from_node.remove_rib(to);
@@ -144,7 +150,7 @@ pub mod graff {
             Ok(())
         }
 
-        pub fn remove_node(&mut self, node_number: usize) -> Result<(), &str> {
+        pub fn remove_node(&mut self, node_number: usize) -> result::Result<(), &str> {
 
             for node in self.nodes.values_mut() {
                 node.remove_rib(node_number)
@@ -154,6 +160,56 @@ pub mod graff {
                 Some(_) => Ok(()),
                 None => Err("no node with this number exists"),
             }
+        }
+    }
+
+    impl<T: str::FromStr, U: str::FromStr> DirectionalGraff<T, U> {
+        pub fn dessireolization<'a>(&mut self, str: String) -> result::Result<Self, &'a str> {
+
+            let x = str.rsplit("#\n").collect::<Vec<_>>();
+            let str_nodes = match x.get(0) {
+                Some(&s) => s.to_string(),
+                None => return Err("serialization error"),
+            };
+            let str_ribs = match x.get(1) {
+                Some(&s) => s.to_string(),
+                None => return Err("serialization error"),
+            };
+
+            let mut nodes: HashMap<usize, Node<T, U>> = HashMap::new();
+
+            for line in str_nodes.rsplit("\n") {
+                let (key, value) = self.parse_node_line(line)?;
+                nodes.insert(key, Node::new(value));
+            }
+
+            Ok(Self::new_empty())
+        }
+
+        fn parse_node_line<'a, 'b>(&self, line: &'a str) -> Result<(usize, T), &'b str> {
+            let mut key = String::new();
+            let mut space_position = 0 as usize;
+
+            for (i, char) in line.chars().enumerate() {
+                if char == ' ' {
+                    space_position = i + 1;
+                    break;
+                }
+
+                key.push(char);
+            }
+
+            let value = match String::from(&line[space_position..]).parse::<T>() {
+                Ok(v) => v,
+                Err(_) => return  Err("serialization error"),
+            };
+
+            let key = match key.parse::<usize>() {
+                Ok(v) => v,
+                Err(_) => return  Err("serialization error"),
+            };
+
+            Ok((key, value))
         }
     }
 
@@ -298,6 +354,33 @@ pub mod graff {
         let test = DirectionalGraff { nodes: map };
 
         assert_eq!(result, test);
+    }
+
+    #[test]
+    fn dessireolization_test() {
+        let mut text = String::new();
+        text.push_str("0 morning\n");
+        text.push_str("1 Noon\n");
+        text.push_str("2 evnin\n");
+        text.push_str("3 night");
+        text.push_str("4 Monday\n");
+        text.push_str("5 Tuesday\n");
+        text.push_str("#\n");
+        text.push_str("0 1 lunch is coming soon\n");
+        text.push_str("0 4 this day\n");
+        text.push_str("1 2 go home\n");
+        text.push_str("2 3 go to sleep\n");
+        text.push_str("3 5 next day\n");
+        text.push_str("4 5 next day\n");
+
+        let mut result: DirectionalGraff<&str, &str> = DirectionalGraff::new("morning");
+        result.add_node(0, "lunch is coming soon", "Noon").unwrap();
+        result.add_node(1, "go home", "evnin").unwrap();
+        result.add_node(2, "go to sleep", "night").unwrap();
+        result.add_node(0, "this day", "Monday").unwrap();
+        result.add_node(4, "next day", "Tuesday").unwrap();
+        result.add_rib(3, 5, "next day").unwrap();
+
     }
 
 }

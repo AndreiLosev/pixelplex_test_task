@@ -1,23 +1,20 @@
-#[derive(Debug)]
-struct Node<T, U> {
-    value: T,
-    to: Vec<Rib<U>>,
-}
-
-#[derive(Debug)]
-struct Rib<T> {
-    target: u128,
-    value: T,
-}
 
 fn main() {
+    let x = String::from("112 Доброе утроа");
 
-    let to_example: Vec<Rib<&str>> = Vec::new();
+    let mut key = String::new();
+    let mut space_position = 0 as usize;
 
-    let x = Node {
-        value: "test",
-        to: to_example,
-    };
+    for (i, char) in x.chars().enumerate() {
+        if char == ' ' {
+            space_position = i + 1;
+            break;
+        }
 
-    dbg!(x.value, x.to);
+        key.push(char);
+    }
+
+    let line = &x[space_position..];
+
+    dbg!(key, space_position, line);
 }
