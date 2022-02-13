@@ -54,11 +54,6 @@ pub mod graff {
 
     impl<T, U> DirectionalGraff<T, U> {
 
-        pub fn new_empty() -> Self {
-            let nodes: HashMap<usize, Node<T, U>> = HashMap::new();
-            Self{ nodes }
-        }
-
         pub fn get_next_key(&self) -> usize {
             let max_key = self.nodes.keys().max();
             match max_key {
@@ -167,16 +162,18 @@ pub mod graff {
 
         pub fn dessireolization<'a>(&mut self, str: String) -> result::Result<(), &'a str> {
 
-            let x = str.rsplit("#\n").collect::<Vec<_>>();
-            let str_nodes = match x.get(0) {
-                Some(&s) => s.to_string(),
-                None => return Err("serialization error"),
-            };
-            let str_ribs = match x.get(1) {
-                Some(&s) => s.to_string(),
-                None => return Err("serialization error"),
-            };
+            let mut divisor = 0 as usize;
 
+            for (i, char) in str.chars().enumerate() {
+                if char == '#' {
+                    divisor = i + 1;
+                }
+            }
+
+            let str_nodes = &str[0..divisor];
+            let str_ribs = &str[divisor..];
+
+            dbg!(&str_nodes, &str_ribs);
             let mut raf_nodes: HashMap<usize, Node<T, U>> = HashMap::new();
 
             for line in str_nodes.rsplit("\n") {
@@ -189,12 +186,12 @@ pub mod graff {
 
                 let value = match value.parse::<T>() {
                     Ok(v) => v,
-                    Err(_) => return  Err("serialization error"),
+                    Err(_) => return  Err("serialization error 3"),
                 };
 
                 let key = match key.parse::<usize>() {
                     Ok(v) => v,
-                    Err(_) => return  Err("serialization error"),
+                    Err(_) => return  Err("serialization error 4"),
                 };
 
                 raf_nodes.insert(key, Node::new(value));
@@ -210,22 +207,22 @@ pub mod graff {
 
                 let from = match from.parse::<usize>() {
                     Ok(v) => v,
-                    Err(_) => return  Err("serialization error"),
+                    Err(_) => return  Err("serialization error 5"),
                 };
 
                 let to = match to.parse::<usize>() {
                     Ok(v) => v,
-                    Err(_) => return  Err("serialization error"),
+                    Err(_) => return  Err("serialization error 6"),
                 };
 
                 let value = match value.parse::<U>() {
                     Ok(v) => v,
-                    Err(_) => return Err("serialization error"),
+                    Err(_) => return Err("serialization error 7"),
                 };
 
                 match raf_nodes.get_mut(&from) {
                     Some(v) => v.ribs.push(Rib::new(to, value)),
-                    None => return Err("serialization error"),
+                    None => return Err("serialization error 8"),
                 }
             }
 
@@ -396,28 +393,34 @@ pub mod graff {
 
     #[test]
     fn dessireolization_test() {
+
+        let mut result: DirectionalGraff<String, String> = DirectionalGraff::new(String::from("morning"));
+        result.add_node(0, String::from("lunch is coming soon"), String::from("Noon")).unwrap();
+        result.add_node(1, String::from("go home"), String::from("evnin")).unwrap();
+        result.add_node(2, String::from("go to sleep"), String::from("night")).unwrap();
+        result.add_node(0, String::from("this day"), String::from("Monday")).unwrap();
+        result.add_node(4, String::from("next day"), String::from("Tuesday")).unwrap();
+        result.add_rib(3, 5, String::from("next day")).unwrap();
+
         let mut text = String::new();
         text.push_str("0 morning\n");
         text.push_str("1 Noon\n");
         text.push_str("2 evnin\n");
-        text.push_str("3 night");
+        text.push_str("3 night\n");
         text.push_str("4 Monday\n");
         text.push_str("5 Tuesday\n");
         text.push_str("#\n");
-        text.push_str("0 1 lunch is coming soon\n");
         text.push_str("0 4 this day\n");
+        text.push_str("0 1 lunch is coming soon\n");
         text.push_str("1 2 go home\n");
         text.push_str("2 3 go to sleep\n");
         text.push_str("3 5 next day\n");
         text.push_str("4 5 next day\n");
 
-        let mut result: DirectionalGraff<&str, &str> = DirectionalGraff::new("morning");
-        result.add_node(0, "lunch is coming soon", "Noon").unwrap();
-        result.add_node(1, "go home", "evnin").unwrap();
-        result.add_node(2, "go to sleep", "night").unwrap();
-        result.add_node(0, "this day", "Monday").unwrap();
-        result.add_node(4, "next day", "Tuesday").unwrap();
-        result.add_rib(3, 5, "next day").unwrap();
+        let mut test_obj: DirectionalGraff<String, String> = DirectionalGraff::new(String::new());
+        test_obj.dessireolization(text).unwrap();
+
+        assert_eq!(result, test_obj);
 
     }
 
