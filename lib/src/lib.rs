@@ -1,27 +1,29 @@
 
 pub mod graff {
     use std::{result::Result};
+    use std::collections::HashMap;
+    use queues::*;
 
     #[derive(PartialEq, Debug)]
-    struct Rib<T> {
+    pub struct Rib<T> {
         target: usize,
         value: T,
     }
 
     impl<T> Rib<T> {
-        fn new(target: usize, value: T) -> Self {
+        pub fn new(target: usize, value: T) -> Self {
             Rib { target, value }
         }
     }
 
     #[derive(PartialEq, Debug)]
-    struct  Node<T, U> {
+    pub struct Node<T, U> {
         value: T,
         ribs: Vec<Rib<U>>
     }
 
     impl<T, U> Node<T, U> {
-        fn new(value: T) -> Self {
+        pub fn new(value: T) -> Self {
             Node { value, ribs: Vec::new() }
         }
 
@@ -29,68 +31,273 @@ pub mod graff {
             let new_rib = Rib::new(target, value);
             self.ribs.push(new_rib);
         }
+
+        fn remove_rib(&mut self, to: usize) {
+
+            let remove_ids = self.ribs.iter()
+                .enumerate()
+                .filter(|(_, rib)| rib.target == to)
+                .map(|(i, _)| i)
+                .collect::<Vec<_>>();
+
+            for i in remove_ids {
+                self.ribs.remove(i);
+            }
+        }
     }
 
     #[derive(PartialEq, Debug)]
     pub struct DirectionalGraff<T, U> {
-        nods: Vec<Node<T, U>>
+        nodes: HashMap<usize, Node<T, U>>
     }
 
     impl<T, U> DirectionalGraff<T, U> {
 
-        pub fn new(first_node_value: T) -> Self {
-            Self{ nods: vec![Node::new(first_node_value)] }
+        pub fn get_next_key(&self) -> usize {
+            let max_key = self.nodes.keys().max();
+            match max_key {
+                Some(&k) => k + 1,
+                None => panic!("it can't be like that."),
+            }
         }
 
-        pub fn len(self) -> usize {
-            self.nods.len()
+        fn get_mut(&mut self, node_number: &usize) -> Result<&mut Node<T, U>, &str> {
+            let result = match self.nodes.get_mut(node_number) {
+                Some(node) => Ok(node),
+                None => Err("no node with this number exists"),
+            };
+
+            result
+        }
+
+        fn get(&self, node_number: &usize) -> Result<&Node<T, U>, &str> {
+            let result = match self.nodes.get(node_number) {
+                Some(node) => Ok(node),
+                None => Err("no node with this number exists"),
+            };
+
+            result
+        }
+
+        fn push(&mut self, node: Node<T, U>) {
+            let next_key = self.get_next_key();
+            self.nodes.insert(next_key, node);
+        }
+
+        pub fn new(first_node_value: T) -> Self {
+            let mut nodes: HashMap<usize, Node<T, U>> = HashMap::new();
+            nodes.insert(0, Node::new(first_node_value));
+            Self{ nodes }
         }
 
         pub fn add_node(&mut self, from: usize, rib_value: U, node_value: T) -> Result<(), &str> {
 
-            let new_node_number = self.nods.len();
+            let new_node_number = self.get_next_key();
 
-            if new_node_number <= from {
-                return  Err("no node with this number exists");
-            }
-
-            self.nods.push(Node::new(node_value));
-            self.nods[from].add_rib(new_node_number, rib_value);
+            self.push(Node::new(node_value));
+            self.get_mut(&from)?.add_rib(new_node_number, rib_value);
 
             Ok(())
         }
 
         pub fn add_rib(&mut self, from: usize, to: usize, rib_value: U) -> Result<(), &str> {
 
-            if from >= self.nods.len() || to >= self.nods.len() {
-                return  Err("no node with this number exists");
-            }
-
             let new_rib = Rib::new(to, rib_value);
-            self.nods[from].ribs.push(new_rib);
+
+            self.get_mut(&from)?.ribs.push(new_rib);
 
             Ok(())
+        }
+
+        pub fn bfs(&self, from: usize, exit_condition: Box<dyn Fn(&Node<T, U>, usize) -> bool>) -> Result<Option<usize>, &str> {
+
+            let mut queue: Queue<&Node<T, U>> = queue![];
+            queue.add(self.get(&from)?).unwrap();
+
+            if exit_condition(queue.peek().unwrap(), from) {
+                return Ok(Some(from));
+            }
+
+            loop {
+                if queue.size() == 0 {
+                    break Ok(None);
+                }
+
+                let node = queue.remove().unwrap();
+
+                for rib in &node.ribs {
+                    let node = self.get(&rib.target)?;
+                    if exit_condition(node, rib.target) {
+                        return Ok(Some(rib.target));
+                    } else {
+                        queue.add(node).unwrap();
+                    }
+                }
+            }
+        }
+
+        pub fn remove_rib(&mut self, from: usize, to: usize) -> Result<(), &str> {
+
+            let from_node = self.get_mut(&from)?;
+            from_node.remove_rib(to);
+
+            Ok(())
+        }
+
+        pub fn remove_node(&mut self, node_number: usize) -> Result<(), &str> {
+
+            for node in self.nodes.values_mut() {
+                node.remove_rib(node_number)
+            }
+
+            match self.nodes.remove(&node_number) {
+                Some(_) => Ok(()),
+                None => Err("no node with this number exists"),
+            }
         }
     }
 
     #[test]
     fn it_create_new() {
         let result: DirectionalGraff<u8, u8> = DirectionalGraff::new(2);
+
         let example_node: Node<u8, u8> = Node { value: 2, ribs: Vec::new() };
-        let example: DirectionalGraff<u8, u8> = DirectionalGraff { nods: vec![example_node] };
+        let mut map: HashMap<usize, Node<u8, u8>> = HashMap::new();
+        map.insert(0, example_node);
+        let example: DirectionalGraff<u8, u8> = DirectionalGraff { nodes: map };
+
         assert_eq!(result, example);
     }
 
     #[test]
     fn add_node_test() {
         let mut result: DirectionalGraff<u8, u8> = DirectionalGraff::new(2);
-        result.add_node(0, 5, 4);
+        result.add_node(0, 5, 4).unwrap();
 
         let example_rib1: Rib<u8> = Rib { target: 1, value: 5 };
         let example_node1: Node<u8, u8> = Node { value: 2, ribs: vec![example_rib1] };
         let example_node2: Node<u8, u8> = Node { value: 4, ribs: Vec::new() };
-        let example: DirectionalGraff<u8, u8> = DirectionalGraff { nods: vec![example_node1, example_node2] };
+        let mut map: HashMap<usize, Node<u8, u8>> = HashMap::new();
+        map.insert(0, example_node1);
+        map.insert(1, example_node2);
+        let example: DirectionalGraff<u8, u8> = DirectionalGraff { nodes: map };
         assert_eq!(result, example);
+    }
+
+    #[test]
+    fn add_rib_test() {
+        let mut result: DirectionalGraff<&str, &str> = DirectionalGraff::new("mid");
+        result.add_node(0, "to_left", "left").unwrap();
+        result.add_node(0, "to_right","right").unwrap();
+        result.add_rib(1, 2, "to_right").unwrap();
+
+        let test_rib1 = Rib::new(1, "to_left");
+        let test_rib2 = Rib::new(2, "to_right");
+        let test_rib3 = Rib::new(2, "to_right");
+        let test_node1= Node {
+            value: "mid",
+            ribs: vec![test_rib1, test_rib2],
+        };
+
+        let test_node2 = Node {
+            value: "left",
+            ribs: vec![test_rib3],
+        };
+        let test_node3: Node<_, &str> = Node {
+            value: "right",
+            ribs: vec![],
+        };
+
+        let mut map: HashMap<usize, Node<&str, &str>> = HashMap::new();
+        map.insert(0, test_node1);
+        map.insert(1, test_node2);
+        map.insert(2, test_node3);
+
+        let test = DirectionalGraff { nodes: map };
+
+        assert_eq!(result, test);
+    }
+
+    #[test]
+    fn bfs_test() {
+        let mut result: DirectionalGraff<&str, &str> = DirectionalGraff::new("mid");
+        result.add_node(0, "to_left", "left").unwrap();
+        result.add_node(0, "to_right","right").unwrap();
+        result.add_node(1, "to_left_level2", "left_level2").unwrap();
+        result.add_node(1, "to_mid_level2", "mid_level2").unwrap();
+        result.add_rib(2, 4, "to_mid_level2").unwrap();
+        result.add_node(2, "to_roght_level2", "right_level2").unwrap();
+
+        let exit_1 = Box::new(|node: &Node<&str, &str>, _: usize| node.value == "mid_level2");
+        let exit_2 = Box::new(|node: &Node<&str, &str>, _: usize| node.value == "right");
+        let res_1 = result.bfs(0, exit_1);
+        let res_2 = result.bfs(1, exit_2);
+
+        assert_eq!([res_1, res_2], [Ok(Some(4)), Ok(None)]);
+
+    }
+
+    #[test]
+    fn remove_rib_test() {
+        let mut result: DirectionalGraff<&str, &str> = DirectionalGraff::new("mid");
+        result.add_node(0, "to_left", "left").unwrap();
+        result.add_node(0, "to_right","right").unwrap();
+        result.add_rib(1, 2, "to_right").unwrap();
+        result.remove_rib(0, 2).unwrap();
+
+        let test_rib1 = Rib::new(1, "to_left");
+        let test_rib3 = Rib::new(2, "to_right");
+        let test_node1= Node {
+            value: "mid",
+            ribs: vec![test_rib1],
+        };
+
+        let test_node2 = Node {
+            value: "left",
+            ribs: vec![test_rib3],
+        };
+        let test_node3: Node<_, &str> = Node {
+            value: "right",
+            ribs: vec![],
+        };
+
+        let mut map: HashMap<usize, Node<&str, &str>> = HashMap::new();
+        map.insert(0, test_node1);
+        map.insert(1, test_node2);
+        map.insert(2, test_node3);
+
+        let test = DirectionalGraff { nodes: map };
+
+        assert_eq!(result, test);
+
+    }
+
+    #[test]
+    fn remove_node_test() {
+        let mut result: DirectionalGraff<&str, &str> = DirectionalGraff::new("mid");
+        result.add_node(0, "to_left", "left").unwrap();
+        result.add_node(0, "to_right","right").unwrap();
+        result.add_rib(1, 2, "to_right").unwrap();
+        result.remove_node(2).unwrap();
+
+        let test_rib1 = Rib::new(1, "to_left");
+        let test_node1= Node {
+            value: "mid",
+            ribs: vec![test_rib1],
+        };
+
+        let test_node2 = Node {
+            value: "left",
+            ribs: vec![],
+        };
+
+        let mut map: HashMap<usize, Node<&str, &str>> = HashMap::new();
+        map.insert(0, test_node1);
+        map.insert(1, test_node2);
+
+        let test = DirectionalGraff { nodes: map };
+
+        assert_eq!(result, test);
     }
 
 }
