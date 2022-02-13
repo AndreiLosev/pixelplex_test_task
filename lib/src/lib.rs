@@ -3,6 +3,7 @@ pub mod graff {
     use std::{result};
     use std::collections::HashMap;
     use std::str;
+    use std::fmt;
     use queues::*;
 
     #[derive(PartialEq, Debug)]
@@ -44,6 +45,14 @@ pub mod graff {
             for i in remove_ids {
                 self.ribs.remove(i);
             }
+        }
+
+    }
+
+    impl <T: fmt::Display, U> fmt::Display for Node<T, U> {
+        fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+            let adjacent = self.ribs.iter().map(|i| i.target).map(|i| i.to_string()).collect::<Vec<_>>().join(", ");
+            write!(f, "{}, adjacent: {}",self.value, adjacent)
         }
     }
 
@@ -119,6 +128,9 @@ pub mod graff {
                 return Ok(Some(from));
             }
 
+            let mut is_used: HashMap<usize, bool> = HashMap::new();
+            is_used.insert(from, true);
+
             loop {
                 if queue.size() == 0 {
                     break Ok(None);
@@ -127,6 +139,19 @@ pub mod graff {
                 let node = queue.remove().unwrap();
 
                 for rib in &node.ribs {
+
+                    let next = match is_used.get(&rib.target) {
+                        Some(&v) => v,
+                        None => false,
+                    };
+
+                    if next {
+                        continue;
+                    } else {
+                        is_used.insert(rib.target, true);
+                    }
+
+
                     let node = self.get(&rib.target)?;
                     if exit_condition(node, rib.target) {
                         return Ok(Some(rib.target));
@@ -173,7 +198,6 @@ pub mod graff {
             let str_nodes = &str[0..divisor];
             let str_ribs = &str[divisor..];
 
-            dbg!(&str_nodes, &str_ribs);
             let mut raf_nodes: HashMap<usize, Node<T, U>> = HashMap::new();
 
             for line in str_nodes.rsplit("\n") {
@@ -245,6 +269,35 @@ pub mod graff {
             }
 
             Ok((key, String::from(&line[space_position..])))
+        }
+    }
+
+    impl<T: fmt::Display, U: fmt::Display> DirectionalGraff<T, U> {
+
+        pub fn serialize(&self) -> result::Result<String, &str> {
+
+            let mut string_nodes: Vec<String> = Vec::new();
+            let mut string_ribs: Vec<String> = Vec::new();
+
+            let mut sort_keys = self.nodes.keys().collect::<Vec<_>>();
+            sort_keys.sort();
+
+            for i in sort_keys {
+                let node = self.get(i)?;
+                let string = format!("{} {}\n", i, node.value);
+                string_nodes.push(string);
+
+                for rib in &node.ribs {
+                    let string = format!("{} {} {}\n", i, rib.target, rib.value);
+                    string_ribs.push(string);
+                }
+            }
+
+            let mut result = string_nodes.join("") + "#\n";
+            let x = &string_ribs.join("")[..];
+            result.push_str(x);
+
+            Ok(result)
         }
     }
 
@@ -422,6 +475,40 @@ pub mod graff {
 
         assert_eq!(result, test_obj);
 
+    }
+
+    #[test]
+    fn serialize_test() {
+        let mut text = String::new();
+        text.push_str("0 morning\n");
+        text.push_str("1 Noon\n");
+        text.push_str("2 evnin\n");
+        text.push_str("3 night\n");
+        text.push_str("4 Monday\n");
+        text.push_str("5 Tuesday\n");
+        text.push_str("#\n");
+
+        let mut text1 = text.clone();
+
+        text1.push_str("0 1 lunch is coming soon\n");
+        text1.push_str("0 4 this day\n");
+        text1.push_str("1 2 go home\n");
+        text1.push_str("2 3 go to sleep\n");
+        text1.push_str("3 5 next day\n");
+        text1.push_str("4 5 next day\n");
+
+        text.push_str("0 4 this day\n");
+        text.push_str("0 1 lunch is coming soon\n");
+        text.push_str("1 2 go home\n");
+        text.push_str("2 3 go to sleep\n");
+        text.push_str("3 5 next day\n");
+        text.push_str("4 5 next day\n");
+
+        let mut test_obj: DirectionalGraff<String, String> = DirectionalGraff::new(String::new());
+        test_obj.dessireolization(text1.clone()).unwrap();
+        let res = test_obj.serialize().unwrap();
+
+        assert_eq!(res, text);
     }
 
 }

@@ -1,0 +1,13 @@
+0 morning
+1 Noon
+2 evnin
+3 night
+4 Monday
+5 Tuesday
+#
+0 4 this day
+0 1 lunch is coming soon
+1 2 go home
+2 3 go to sleep
+3 5 next day
+4 5 next day
