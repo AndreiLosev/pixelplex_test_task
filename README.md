@@ -1,4 +1,4 @@
 # how run
 
-cd binar
-cargo run exapmle.tgf
+* cd binar
+* cargo run exapmle.tgf
