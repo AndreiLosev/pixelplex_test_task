@@ -187,7 +187,7 @@ pub mod graff {
 
         pub fn dessireolization<'a>(&mut self, str: String) -> result::Result<(), &'a str> {
 
-            let mut divisor = 0 as usize;
+            let mut divisor = 0;
 
             for (i, char) in str.chars().enumerate() {
                 if char == '#' {
@@ -200,7 +200,7 @@ pub mod graff {
 
             let mut raf_nodes: HashMap<usize, Node<T, U>> = HashMap::new();
 
-            for line in str_nodes.rsplit("\n") {
+            for line in str_nodes.rsplit('\n') {
 
                 if line.len() <= 2 {
                     continue;
@@ -221,7 +221,7 @@ pub mod graff {
                 raf_nodes.insert(key, Node::new(value));
             }
 
-            for line in str_ribs.rsplit("\n") {
+            for line in str_ribs.rsplit('\n') {
                 if line.len() <= 2 {
                     continue;
                 }
@@ -257,7 +257,7 @@ pub mod graff {
 
         fn parse_line<'a, 'b>(&self, line: &'a str) -> Result<(String, String), &'b str> {
             let mut key = String::new();
-            let mut space_position = 0 as usize;
+            let mut space_position = 0;
 
             for (i, char) in line.chars().enumerate() {
                 if char == ' ' {
