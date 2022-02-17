@@ -15,7 +15,7 @@ fn main() {
     let exit_cond = |node: &Node<String, String>, i: usize| {
         let string = format!("{} -> {}", i, node);
         println!("{}", string);
-        return false;
+        false
     };
 
     graff.bfs(0, Box::new(exit_cond)).unwrap();

@@ -58,23 +58,32 @@ pub mod graff {
 
     #[derive(PartialEq, Debug)]
     pub struct DirectionalGraff<T, U> {
+        last_key: usize,
         nodes: HashMap<usize, Node<T, U>>
     }
 
     impl<T, U> DirectionalGraff<T, U> {
 
         pub fn get_next_key(&self) -> usize {
-            let max_key = self.nodes.keys().max();
-            match max_key {
-                Some(&k) => k + 1,
-                None => panic!("it can't be like that."),
-            }
+            self.last_key
+        }
+
+        fn generate_next_key(&mut self) -> usize {
+            self.last_key += 1;
+            self.last_key
+        }
+
+        pub fn get_last_key(&self) -> usize {
+            self.last_key
         }
 
         fn get_mut(&mut self, node_number: &usize) -> result::Result<&mut Node<T, U>, &str> {
             let result = match self.nodes.get_mut(node_number) {
                 Some(node) => Ok(node),
-                None => Err("no node with this number exists"),
+                None => {
+                    dbg!(node_number);
+                    Err("no node with this number exists 11")
+                },
             };
 
             result
@@ -83,7 +92,7 @@ pub mod graff {
         fn get(&self, node_number: &usize) -> result::Result<&Node<T, U>, &str> {
             let result = match self.nodes.get(node_number) {
                 Some(node) => Ok(node),
-                None => Err("no node with this number exists"),
+                None => Err("no node with this number exists 22"),
             };
 
             result
@@ -96,13 +105,14 @@ pub mod graff {
 
         pub fn new(first_node_value: T) -> Self {
             let mut nodes: HashMap<usize, Node<T, U>> = HashMap::new();
-            nodes.insert(0, Node::new(first_node_value));
-            Self{ nodes }
+            let last_key = 1;
+            nodes.insert(last_key, Node::new(first_node_value));
+            Self{ nodes, last_key }
         }
 
         pub fn add_node(&mut self, from: usize, rib_value: U, node_value: T) -> Result<(), &str> {
 
-            let new_node_number = self.get_next_key();
+            let new_node_number = self.generate_next_key();
 
             self.push(Node::new(node_value));
             self.get_mut(&from)?.add_rib(new_node_number, rib_value);
@@ -178,7 +188,7 @@ pub mod graff {
 
             match self.nodes.remove(&node_number) {
                 Some(_) => Ok(()),
-                None => Err("no node with this number exists"),
+                None => Err("no node with this number exists 33"),
             }
         }
     }
@@ -251,6 +261,10 @@ pub mod graff {
             }
 
             self.nodes = raf_nodes;
+            self.last_key = match self.nodes.keys().max() {
+                Some(&v) => v,
+                None => return  Err("serialization error"),
+            };
 
             Ok(())
         }
@@ -307,8 +321,8 @@ pub mod graff {
 
         let example_node: Node<u8, u8> = Node { value: 2, ribs: Vec::new() };
         let mut map: HashMap<usize, Node<u8, u8>> = HashMap::new();
-        map.insert(0, example_node);
-        let example: DirectionalGraff<u8, u8> = DirectionalGraff { nodes: map };
+        map.insert(1, example_node);
+        let example: DirectionalGraff<u8, u8> = DirectionalGraff { nodes: map, last_key: 1 };
 
         assert_eq!(result, example);
     }
@@ -316,28 +330,28 @@ pub mod graff {
     #[test]
     fn add_node_test() {
         let mut result: DirectionalGraff<u8, u8> = DirectionalGraff::new(2);
-        result.add_node(0, 5, 4).unwrap();
+        result.add_node(1, 5, 4).unwrap();
 
-        let example_rib1: Rib<u8> = Rib { target: 1, value: 5 };
+        let example_rib1: Rib<u8> = Rib { target: 2, value: 5 };
         let example_node1: Node<u8, u8> = Node { value: 2, ribs: vec![example_rib1] };
         let example_node2: Node<u8, u8> = Node { value: 4, ribs: Vec::new() };
         let mut map: HashMap<usize, Node<u8, u8>> = HashMap::new();
-        map.insert(0, example_node1);
-        map.insert(1, example_node2);
-        let example: DirectionalGraff<u8, u8> = DirectionalGraff { nodes: map };
+        map.insert(1, example_node1);
+        map.insert(2, example_node2);
+        let example: DirectionalGraff<u8, u8> = DirectionalGraff { nodes: map, last_key: 2 };
         assert_eq!(result, example);
     }
 
     #[test]
     fn add_rib_test() {
         let mut result: DirectionalGraff<&str, &str> = DirectionalGraff::new("mid");
-        result.add_node(0, "to_left", "left").unwrap();
-        result.add_node(0, "to_right","right").unwrap();
-        result.add_rib(1, 2, "to_right").unwrap();
+        result.add_node(1, "to_left", "left").unwrap();
+        result.add_node(1, "to_right","right").unwrap();
+        result.add_rib(2, 3, "to_right").unwrap();
 
-        let test_rib1 = Rib::new(1, "to_left");
-        let test_rib2 = Rib::new(2, "to_right");
-        let test_rib3 = Rib::new(2, "to_right");
+        let test_rib1 = Rib::new(2, "to_left");
+        let test_rib2 = Rib::new(3, "to_right");
+        let test_rib3 = Rib::new(3, "to_right");
         let test_node1= Node {
             value: "mid",
             ribs: vec![test_rib1, test_rib2],
@@ -353,11 +367,11 @@ pub mod graff {
         };
 
         let mut map: HashMap<usize, Node<&str, &str>> = HashMap::new();
-        map.insert(0, test_node1);
-        map.insert(1, test_node2);
-        map.insert(2, test_node3);
+        map.insert(1, test_node1);
+        map.insert(2, test_node2);
+        map.insert(3, test_node3);
 
-        let test = DirectionalGraff { nodes: map };
+        let test = DirectionalGraff { nodes: map, last_key: 3 };
 
         assert_eq!(result, test);
     }
@@ -365,32 +379,32 @@ pub mod graff {
     #[test]
     fn bfs_test() {
         let mut result: DirectionalGraff<&str, &str> = DirectionalGraff::new("mid");
-        result.add_node(0, "to_left", "left").unwrap();
-        result.add_node(0, "to_right","right").unwrap();
-        result.add_node(1, "to_left_level2", "left_level2").unwrap();
-        result.add_node(1, "to_mid_level2", "mid_level2").unwrap();
-        result.add_rib(2, 4, "to_mid_level2").unwrap();
-        result.add_node(2, "to_roght_level2", "right_level2").unwrap();
+        result.add_node(1, "to_left", "left").unwrap();
+        result.add_node(1, "to_right","right").unwrap();
+        result.add_node(2, "to_left_level2", "left_level2").unwrap();
+        result.add_node(2, "to_mid_level2", "mid_level2").unwrap();
+        result.add_rib(3, 5, "to_mid_level2").unwrap();
+        result.add_node(3, "to_roght_level2", "right_level2").unwrap();
 
         let exit_1 = Box::new(|node: &Node<&str, &str>, _: usize| node.value == "mid_level2");
         let exit_2 = Box::new(|node: &Node<&str, &str>, _: usize| node.value == "right");
-        let res_1 = result.bfs(0, exit_1);
-        let res_2 = result.bfs(1, exit_2);
+        let res_1 = result.bfs(1, exit_1);
+        let res_2 = result.bfs(2, exit_2);
 
-        assert_eq!([res_1, res_2], [Ok(Some(4)), Ok(None)]);
+        assert_eq!([res_1, res_2], [Ok(Some(5)), Ok(None)]);
 
     }
 
     #[test]
     fn remove_rib_test() {
         let mut result: DirectionalGraff<&str, &str> = DirectionalGraff::new("mid");
-        result.add_node(0, "to_left", "left").unwrap();
-        result.add_node(0, "to_right","right").unwrap();
-        result.add_rib(1, 2, "to_right").unwrap();
-        result.remove_rib(0, 2).unwrap();
+        result.add_node(1, "to_left", "left").unwrap();
+        result.add_node(1, "to_right","right").unwrap();
+        result.add_rib(2, 3, "to_right").unwrap();
+        result.remove_rib(1, 3).unwrap();
 
-        let test_rib1 = Rib::new(1, "to_left");
-        let test_rib3 = Rib::new(2, "to_right");
+        let test_rib1 = Rib::new(2, "to_left");
+        let test_rib3 = Rib::new(3, "to_right");
         let test_node1= Node {
             value: "mid",
             ribs: vec![test_rib1],
@@ -406,11 +420,11 @@ pub mod graff {
         };
 
         let mut map: HashMap<usize, Node<&str, &str>> = HashMap::new();
-        map.insert(0, test_node1);
-        map.insert(1, test_node2);
-        map.insert(2, test_node3);
+        map.insert(1, test_node1);
+        map.insert(2, test_node2);
+        map.insert(3, test_node3);
 
-        let test = DirectionalGraff { nodes: map };
+        let test = DirectionalGraff { nodes: map, last_key: 3 };
 
         assert_eq!(result, test);
 
@@ -419,12 +433,12 @@ pub mod graff {
     #[test]
     fn remove_node_test() {
         let mut result: DirectionalGraff<&str, &str> = DirectionalGraff::new("mid");
-        result.add_node(0, "to_left", "left").unwrap();
-        result.add_node(0, "to_right","right").unwrap();
-        result.add_rib(1, 2, "to_right").unwrap();
-        result.remove_node(2).unwrap();
+        result.add_node(1, "to_left", "left").unwrap();
+        result.add_node(1, "to_right","right").unwrap();
+        result.add_rib(2, 3, "to_right").unwrap();
+        result.remove_node(3).unwrap();
 
-        let test_rib1 = Rib::new(1, "to_left");
+        let test_rib1 = Rib::new(2, "to_left");
         let test_node1= Node {
             value: "mid",
             ribs: vec![test_rib1],
@@ -436,10 +450,10 @@ pub mod graff {
         };
 
         let mut map: HashMap<usize, Node<&str, &str>> = HashMap::new();
-        map.insert(0, test_node1);
-        map.insert(1, test_node2);
+        map.insert(1, test_node1);
+        map.insert(2, test_node2);
 
-        let test = DirectionalGraff { nodes: map };
+        let test = DirectionalGraff { nodes: map, last_key: 3 };
 
         assert_eq!(result, test);
     }
@@ -448,27 +462,27 @@ pub mod graff {
     fn dessireolization_test() {
 
         let mut result: DirectionalGraff<String, String> = DirectionalGraff::new(String::from("morning"));
-        result.add_node(0, String::from("lunch is coming soon"), String::from("Noon")).unwrap();
-        result.add_node(1, String::from("go home"), String::from("evnin")).unwrap();
-        result.add_node(2, String::from("go to sleep"), String::from("night")).unwrap();
-        result.add_node(0, String::from("this day"), String::from("Monday")).unwrap();
-        result.add_node(4, String::from("next day"), String::from("Tuesday")).unwrap();
-        result.add_rib(3, 5, String::from("next day")).unwrap();
+        result.add_node(1, String::from("lunch is coming soon"), String::from("Noon")).unwrap();
+        result.add_node(2, String::from("go home"), String::from("evnin")).unwrap();
+        result.add_node(3, String::from("go to sleep"), String::from("night")).unwrap();
+        result.add_node(1, String::from("this day"), String::from("Monday")).unwrap();
+        result.add_node(5, String::from("next day"), String::from("Tuesday")).unwrap();
+        result.add_rib(4, 6, String::from("next day")).unwrap();
 
         let mut text = String::new();
-        text.push_str("0 morning\n");
-        text.push_str("1 Noon\n");
-        text.push_str("2 evnin\n");
-        text.push_str("3 night\n");
-        text.push_str("4 Monday\n");
-        text.push_str("5 Tuesday\n");
+        text.push_str("1 morning\n");
+        text.push_str("2 Noon\n");
+        text.push_str("3 evnin\n");
+        text.push_str("4 night\n");
+        text.push_str("5 Monday\n");
+        text.push_str("6 Tuesday\n");
         text.push_str("#\n");
-        text.push_str("0 4 this day\n");
-        text.push_str("0 1 lunch is coming soon\n");
-        text.push_str("1 2 go home\n");
-        text.push_str("2 3 go to sleep\n");
-        text.push_str("3 5 next day\n");
-        text.push_str("4 5 next day\n");
+        text.push_str("1 5 this day\n");
+        text.push_str("1 2 lunch is coming soon\n");
+        text.push_str("2 3 go home\n");
+        text.push_str("3 4 go to sleep\n");
+        text.push_str("4 6 next day\n");
+        text.push_str("5 6 next day\n");
 
         let mut test_obj: DirectionalGraff<String, String> = DirectionalGraff::new(String::new());
         test_obj.dessireolization(text).unwrap();
@@ -480,29 +494,29 @@ pub mod graff {
     #[test]
     fn serialize_test() {
         let mut text = String::new();
-        text.push_str("0 morning\n");
-        text.push_str("1 Noon\n");
-        text.push_str("2 evnin\n");
-        text.push_str("3 night\n");
-        text.push_str("4 Monday\n");
-        text.push_str("5 Tuesday\n");
+        text.push_str("1 morning\n");
+        text.push_str("2 Noon\n");
+        text.push_str("3 evnin\n");
+        text.push_str("4 night\n");
+        text.push_str("5 Monday\n");
+        text.push_str("6 Tuesday\n");
         text.push_str("#\n");
 
         let mut text1 = text.clone();
 
-        text1.push_str("0 1 lunch is coming soon\n");
-        text1.push_str("0 4 this day\n");
-        text1.push_str("1 2 go home\n");
-        text1.push_str("2 3 go to sleep\n");
-        text1.push_str("3 5 next day\n");
-        text1.push_str("4 5 next day\n");
+        text1.push_str("1 2 lunch is coming soon\n");
+        text1.push_str("1 5 this day\n");
+        text1.push_str("2 3 go home\n");
+        text1.push_str("3 4 go to sleep\n");
+        text1.push_str("4 6 next day\n");
+        text1.push_str("5 6 next day\n");
 
-        text.push_str("0 4 this day\n");
-        text.push_str("0 1 lunch is coming soon\n");
-        text.push_str("1 2 go home\n");
-        text.push_str("2 3 go to sleep\n");
-        text.push_str("3 5 next day\n");
-        text.push_str("4 5 next day\n");
+        text.push_str("1 5 this day\n");
+        text.push_str("1 2 lunch is coming soon\n");
+        text.push_str("2 3 go home\n");
+        text.push_str("3 4 go to sleep\n");
+        text.push_str("4 6 next day\n");
+        text.push_str("5 6 next day\n");
 
         let mut test_obj: DirectionalGraff<String, String> = DirectionalGraff::new(String::new());
         test_obj.dessireolization(text1.clone()).unwrap();
